@@ -1,0 +1,46 @@
+Parameters:
+  domainname:
+    Description: The name of the opensearch domain
+    Type: String
+    Default: bubble-domain
+  masterusername:
+    Description: Username for opensearch.
+    Type: String
+    Default: test
+  masterpassword:
+    Description: Password for opensearch.
+    Type: String
+    Default: Test@1234
+Resources:
+  OpensearchDomain:
+    Type: AWS::OpenSearchService::Domain
+    Properties:
+      AccessPolicies:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: '*'
+            Action: es:*
+            Resource: !Sub "arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${domainname}/*"
+      AdvancedSecurityOptions:
+        Enabled: True
+        InternalUserDatabaseEnabled: True
+        MasterUserOptions:
+          MasterUserName: !Ref masterusername
+          MasterUserPassword: !Ref masterpassword
+      ClusterConfig:
+        InstanceCount: 1
+        InstanceType: t3.small.search
+      DomainEndpointOptions:
+        EnforceHTTPS: True
+      DomainName: !Ref domainname
+      EBSOptions:
+        EBSEnabled: True
+        VolumeSize: 10
+        VolumeType: gp2
+      EncryptionAtRestOptions:
+        Enabled: True
+      EngineVersion: Elasticsearch_7.10
+      NodeToNodeEncryptionOptions:
+          Enabled: True

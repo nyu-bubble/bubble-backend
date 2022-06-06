@@ -1,0 +1,1203 @@
+Parameters:
+  domainname:
+    Description: The name of the opensearch domain
+    Type: String
+    Default: bubble-domain
+  masterusername:
+    Description: Username for opensearch.
+    Type: String
+    Default: test
+  masterpassword:
+    Description: Password for opensearch.
+    Type: String
+    Default: Test@1234
+Resources:
+  OpensearchDomain:
+    Type: AWS::OpenSearchService::Domain
+    Properties:
+      AccessPolicies:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: '*'
+            Action: es:*
+            Resource: !Sub "arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${domainname}/*"
+      AdvancedSecurityOptions:
+        Enabled: True
+        InternalUserDatabaseEnabled: True
+        MasterUserOptions:
+          MasterUserName: !Ref masterusername
+          MasterUserPassword: !Ref masterpassword
+      ClusterConfig:
+        InstanceCount: 1
+        InstanceType: t3.small.search
+      DomainEndpointOptions:
+        EnforceHTTPS: True
+      DomainName: !Ref domainname
+      EBSOptions:
+        EBSEnabled: True
+        VolumeSize: 10
+        VolumeType: gp2
+      EncryptionAtRestOptions:
+        Enabled: True
+      EngineVersion: Elasticsearch_7.10
+      NodeToNodeEncryptionOptions:
+          Enabled: True
+  AnswerDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "answer_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "answer_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: answers-db
+
+  BlogDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "blog_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "blog_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: blogs-db
+  
+  CommentDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "comment_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "comment_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: comments-db
+  
+  ReviewDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "review_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "review_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: professor-reviews-db
+  
+  ProfessorDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "professor_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "professor_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: professors-db
+
+  QuestionDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "question_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "question_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: questions-db
+  
+  UserActivityDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "user_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "user_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: user-activity-db
+  
+  UserDetailDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "user_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "user_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: user-details-db
+
+  ReqSimp:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+      - python3.8
+      Content:
+        S3Bucket: 'bubble-code'
+        S3Key: layers/req_simp.zip
+      Description: Requests and Simple Json Library
+      LayerName: req-simp-lib
+  BS4:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+      - python3.8
+      Content:
+        S3Bucket: 'bubble-code'
+        S3Key: layers/bs4.zip
+      Description: BeautifulSoup
+      LayerName: bs4-lib
+  Opensearch:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+      - python3.8
+      Content:
+        S3Bucket: 'bubble-code'
+        S3Key: layers/opensearch.zip
+      Description: Opensearch
+      LayerName: opensearch-lib
+
+  LF2:
+    Type: AWS::Lambda::Function
+    DependsOn: LF2role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF2_post_question
+      Handler: LF2_post_question.lambda_handler
+      Role: !GetAtt LF2role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF2_post_question.zip
+      Layers:
+        - !Ref ReqSimp
+        - !Ref BS4 
+  
+  LF2role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF2log:
+    Properties:
+      LogGroupName: /aws/lambda/LF2_post_question
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF2
+
+  LF28:
+    Type: AWS::Lambda::Function
+    DependsOn: LF8role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF28_post_blog
+      Handler: LF28_post_blog.lambda_handler
+      Role: !GetAtt LF28role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF28_post_blog.zip
+      Layers:
+        - !Ref ReqSimp
+        - !Ref BS4 
+  
+  LF28role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF28log:
+    Properties:
+      LogGroupName: /aws/lambda/LF28_post_blog
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF28
+
+  LF10:
+    Type: AWS::Lambda::Function
+    DependsOn: LF10role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF10_get_professor
+      Handler: LF10_get_professor.lambda_handler
+      Role: !GetAtt LF10role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF10_get_professor.zip
+  
+  LF10role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF10log:
+    Properties:
+      LogGroupName: /aws/lambda/LF10_get_professor
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF10
+  LF11:
+    Type: AWS::Lambda::Function
+    DependsOn: LF11role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF11_get_question
+      Handler: LF11_get_question.lambda_handler
+      Role: !GetAtt LF11role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF11_get_question.zip
+  LF11role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF11log:
+    Properties:
+      LogGroupName: /aws/lambda/LF11_get_question
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF11
+  LF12:
+    Type: AWS::Lambda::Function
+    DependsOn: LF12role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF12_get_related_blogs
+      Handler: LF12_get_related_blogs.lambda_handler
+      Role: !GetAtt LF12role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF12_get_related_blogs.zip
+      Layers:
+        - !Ref Opensearch
+  LF12role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonOpenSearchServiceFullAccess
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF12log:
+    Properties:
+      LogGroupName: /aws/lambda/LF12_get_related_blogs
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF12
+  LF13:
+    Type: AWS::Lambda::Function
+    DependsOn: LF13role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF13_get_related_question
+      Handler: LF13_get_related_question.lambda_handler
+      Role: !GetAtt LF13role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF13_get_related_question.zip
+      Layers:
+        - !Ref Opensearch
+  LF13role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonOpenSearchServiceFullAccess
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF13log:
+    Properties:
+      LogGroupName: /aws/lambda/LF13_get_related_question
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF13
+  LF14:
+    Type: AWS::Lambda::Function
+    DependsOn: LF14role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF14_get_reviews_rate_my_professor
+      Handler: LF14_get_reviews_rate_my_professor.lambda_handler
+      Role: !GetAtt LF14role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF14_get_reviews_rate_my_professor.zip
+  LF14role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF14log:
+    Properties:
+      LogGroupName: /aws/lambda/LF14_get_reviews_rate_my_professor
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF14
+  LF15:
+    Type: AWS::Lambda::Function
+    DependsOn: LF15role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF15_get_user_content
+      Handler: LF15_get_user_content.lambda_handler
+      Role: !GetAtt LF15role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF15_get_user_content.zip
+  LF15role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF15log:
+    Properties:
+      LogGroupName: /aws/lambda/LF15_get_user_content
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF15
+  LF16:
+    Type: AWS::Lambda::Function
+    DependsOn: LF16role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF16_get_vote_val
+      Handler: LF16_get_vote_val.lambda_handler
+      Role: !GetAtt LF16role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF16_get_vote_val.zip
+  LF16role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF16log:
+    Properties:
+      LogGroupName: /aws/lambda/LF16_get_vote_val
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF16
+  LF17:
+    Type: AWS::Lambda::Function
+    DependsOn: LF17role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF17_post_answer
+      Handler: LF17_post_answer.lambda_handler
+      Role: !GetAtt LF17role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF17_post_answer.zip
+      Layers:
+        - !Ref ReqSimp
+        - !Ref BS4
+  LF17role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF17log:
+    Properties:
+      LogGroupName: /aws/lambda/LF17_post_answer
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF17
+  LF18:
+    Type: AWS::Lambda::Function
+    DependsOn: LF18role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF18_post_comment
+      Handler: LF18_post_comment.lambda_handler
+      Role: !GetAtt LF18role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF18_post_comment.zip
+      Layers:
+        - !Ref ReqSimp
+  LF18role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF18log:
+    Properties:
+      LogGroupName: /aws/lambda/LF18_post_comment
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF18
+  LF19:
+    Type: AWS::Lambda::Function
+    DependsOn: LF19role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF19_post_review
+      Handler: LF19_post_review.lambda_handler
+      Role: !GetAtt LF19role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF19_post_review.zip
+      Layers:
+        - !Ref ReqSimp
+  LF19role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/ComprehendFullAccess
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF19log:
+    Properties:
+      LogGroupName: /aws/lambda/LF19_post_review
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF19
+  LF1:
+    Type: AWS::Lambda::Function
+    DependsOn: LF1role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF1_addprofessor
+      Handler: LF1_addprofessor.lambda_handler
+      Role: !GetAtt LF1role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF1_addprofessor.zip
+      Layers:
+        - !Ref ReqSimp
+  LF1role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonOpenSearchServiceFullAccess
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF1log:
+    Properties:
+      LogGroupName: /aws/lambda/LF1_addprofessor
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF1
+  LF20:
+    Type: AWS::Lambda::Function
+    DependsOn: LF20role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF20_search_blogs
+      Handler: LF20_search_blogs.lambda_handler
+      Role: !GetAtt LF20role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF20_search_blogs.zip
+      Layers:
+        - !Ref Opensearch
+  LF20role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonOpenSearchServiceFullAccess
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF20log:
+    Properties:
+      LogGroupName: /aws/lambda/LF20_search_blogs
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF20
+  LF21:
+    Type: AWS::Lambda::Function
+    DependsOn: LF21role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF21_search_generic_query
+      Handler: LF21_search_generic_query.lambda_handler
+      Role: !GetAtt LF21role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF21_search_generic_query.zip
+      Layers:
+        - !Ref Opensearch
+  LF21role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonOpenSearchServiceFullAccess
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF21log:
+    Properties:
+      LogGroupName: /aws/lambda/LF21_search_generic_query
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF21
+  LF22:
+    Type: AWS::Lambda::Function
+    DependsOn: LF22role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF22_search_professor
+      Handler: LF22_search_professor.lambda_handler
+      Role: !GetAtt LF22role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF22_search_professor.zip
+      Layers:
+        - !Ref Opensearch
+  LF22role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonOpenSearchServiceFullAccess
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF22log:
+    Properties:
+      LogGroupName: /aws/lambda/LF22_search_professor
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF22
+  LF23:
+    Type: AWS::Lambda::Function
+    DependsOn: LF23role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF23_search_questions
+      Handler: LF23_search_questions.lambda_handler
+      Role: !GetAtt LF23role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF23_search_questions.zip
+      Layers:
+        - !Ref Opensearch
+  LF23role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonOpenSearchServiceFullAccess
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF23log:
+    Properties:
+      LogGroupName: /aws/lambda/LF23_search_questions
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF23
+  LF24:
+    Type: AWS::Lambda::Function
+    DependsOn: LF24role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF24_set_vote
+      Handler: LF24_set_vote.lambda_handler
+      Role: !GetAtt LF24role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF24_set_vote.zip
+      Layers:
+        - !Ref ReqSimp
+  LF24role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF24log:
+    Properties:
+      LogGroupName: /aws/lambda/LF24_set_vote
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF24
+  LF25:
+    Type: AWS::Lambda::Function
+    DependsOn: LF25role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF25_signup
+      Handler: LF25_signup.lambda_handler
+      Role: !GetAtt LF25role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF25_signup.zip
+      Layers:
+        - !Ref ReqSimp
+  LF25role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF25log:
+    Properties:
+      LogGroupName: /aws/lambda/LF25_signup
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF25
+  LF26:
+    Type: AWS::Lambda::Function
+    DependsOn: LF26role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF26_sqs_explicit
+      Handler: LF26_sqs_explicit.lambda_handler
+      Role: !GetAtt LF26role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF26_sqs_explicit.zip
+      Layers:
+        - !Ref ReqSimp
+  LF26role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+      - arn:aws:iam::aws:policy/AmazonRekognitionFullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF26log:
+    Properties:
+      LogGroupName: /aws/lambda/LF26_sqs_explicit
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF26
+  LF27:
+    Type: AWS::Lambda::Function
+    DependsOn: LF27role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF27_undelete
+      Handler: LF27_undelete.lambda_handler
+      Role: !GetAtt LF27role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF27_undelete.zip
+      Layers:
+        - !Ref ReqSimp
+  LF27role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF27log:
+    Properties:
+      LogGroupName: /aws/lambda/LF27_undelete
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF27
+  LF3:
+    Type: AWS::Lambda::Function
+    DependsOn: LF3role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF3_delete
+      Handler: LF3_delete.lambda_handler
+      Role: !GetAtt LF3role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF3_delete.zip
+      Layers:
+        - !Ref ReqSimp
+  LF3role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF3log:
+    Properties:
+      LogGroupName: /aws/lambda/LF3_delete
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF3
+  LF4:
+    Type: AWS::Lambda::Function
+    DependsOn: LF4role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF4_get_answer
+      Handler: LF4_get_answer.lambda_handler
+      Role: !GetAtt LF4role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF4_get_answer.zip
+  LF4role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF4log:
+    Properties:
+      LogGroupName: /aws/lambda/LF4_get_answer
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF4
+  LF5:
+    Type: AWS::Lambda::Function
+    DependsOn: LF5role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF5_get_blog
+      Handler: LF5_get_blog.lambda_handler
+      Role: !GetAtt LF5role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF5_get_blog.zip
+  LF5role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF5log:
+    Properties:
+      LogGroupName: /aws/lambda/LF5_get_blog
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF5
+  LF6:
+    Type: AWS::Lambda::Function
+    DependsOn: LF6role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF6_get_comment
+      Handler: LF6_get_comment.lambda_handler
+      Role: !GetAtt LF6role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF6_get_comment.zip
+  LF6role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF6log:
+    Properties:
+      LogGroupName: /aws/lambda/LF6_get_comment
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF6
+  LF7:
+    Type: AWS::Lambda::Function
+    DependsOn: LF7role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF7_get_latest_blog
+      Handler: LF7_get_latest_blog.lambda_handler
+      Role: !GetAtt LF7role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF7_get_latest_blog.zip
+      Layers:
+        - !Ref Opensearch
+  LF7role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonOpenSearchServiceFullAccess
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF7log:
+    Properties:
+      LogGroupName: /aws/lambda/LF7_get_latest_blog
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF7
+  LF8:
+    Type: AWS::Lambda::Function
+    DependsOn: LF8role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF8_get_latest_feed
+      Handler: LF8_get_latest_feed.lambda_handler
+      Role: !GetAtt LF8role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF8_get_latest_feed.zip
+      Layers:
+        - !Ref Opensearch
+  LF8role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonOpenSearchServiceFullAccess
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF8log:
+    Properties:
+      LogGroupName: /aws/lambda/LF8_get_latest_feed
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF8
+  LF9:
+    Type: AWS::Lambda::Function
+    DependsOn: LF9role
+    Properties:
+      Runtime: python3.8
+      FunctionName: LF9_get_latest_questions
+      Handler: LF9_get_latest_questions.lambda_handler
+      Role: !GetAtt LF9role.Arn
+      Timeout: '15'
+      Code:
+        S3Bucket: bubble-code
+        S3Key: lambda/LF9_get_latest_questions.zip
+      Layers:
+        - !Ref Opensearch
+  LF9role:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - arn:aws:iam::aws:policy/AmazonOpenSearchServiceFullAccess
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Path: /
+    Type: AWS::IAM::Role
+  LF9log:
+    Properties:
+      LogGroupName: /aws/lambda/LF9_get_latest_questions
+    Type: AWS::Logs::LogGroup
+    DependsOn: LF9

@@ -1,0 +1,32 @@
+---
+Resources:
+  ReqSimp:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.8
+      Content:
+        S3Bucket: 'bubble-code'
+        S3Key: layers/req_simp.zip
+      Description: Requests and Simple Json Library
+      LayerName: req-simp-lib
+  BS4:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.8
+      Content:
+        S3Bucket: 'bubble-code'
+        S3Key: layers/bs4.zip
+      Description: BeautifulSoup
+      LayerName: bs4-lib
+  Opensearch:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.8
+      Content:
+        S3Bucket: 'bubble-code'
+        S3Key: layers/opensearch.zip
+      Description: Opensearch
+      LayerName: opensearch-lib

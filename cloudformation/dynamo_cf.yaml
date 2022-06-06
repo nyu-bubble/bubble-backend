@@ -1,0 +1,128 @@
+Resources:
+  AnswerDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "answer_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "answer_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: answers-db
+
+  BlogDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "blog_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "blog_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: blogs-db
+  
+  CommentDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "comment_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "comment_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: comments-db
+  
+  ReviewDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "review_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "review_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: professor-reviews-db
+  
+  ProfessorDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "professor_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "professor_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: professors-db
+
+  QuestionDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "question_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "question_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: questions-db
+  
+  UserActivityDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "user_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "user_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: user-activity-db
+  
+  UserDetailDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "user_id"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "user_id"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      TableName: user-details-db
